@@ -49,7 +49,8 @@ dependencies = [
     "matplotlib",
     "seaborn",
     "imagecodecs",
-    "yacs"
+    "yacs",
+    "visualdl"
 ]
 
 [project.urls]
@@ -57,6 +58,7 @@ homepage = "https://github.com/MIC-DKFZ/nnUNet"
 repository = "https://github.com/MIC-DKFZ/nnUNet"
 
 [project.scripts]
+nnUNetv2_visual_server = "nnunetv2.visual_log.visual_server:start_server"
 nnUNetv2_plan_and_preprocess = "nnunetv2.experiment_planning.plan_and_preprocess_entrypoints:plan_and_preprocess_entry"
 nnUNetv2_extract_fingerprint = "nnunetv2.experiment_planning.plan_and_preprocess_entrypoints:extract_fingerprint_entry"
 nnUNetv2_plan_experiment = "nnunetv2.experiment_planning.plan_and_preprocess_entrypoints:plan_experiment_entry"

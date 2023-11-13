@@ -23,7 +23,8 @@ from nnunetv2.configuration import ANISO_THRESHOLD, default_num_processes
 from nnunetv2.evaluation.evaluate_predictions import compute_metrics_on_folder
 from nnunetv2.inference.export_prediction import export_prediction_from_softmax, resample_and_save
 from nnunetv2.inference.sliding_window_prediction import compute_gaussian, predict_sliding_window_return_logits
-from nnunetv2.paths import nnUNet_preprocessed, nnUNet_results
+from nnunetv2.visual_log import LoggerScalar, start_server, find_free_port
+from nnunetv2.paths import nnUNet_preprocessed, nnUNet_results, nnUNet_logs
 from nnunetv2.training.data_augmentation.compute_initial_patch_size import get_patch_size
 from nnunetv2.training.data_augmentation.custom_transforms.cascade_transforms import MoveSegAsOneHotToData, \
     ApplyRandomBinaryOperatorTransform, RemoveRandomConnectedComponentFromOneHotEncodingTransform
@@ -59,6 +60,7 @@ from torch.cuda import device_count
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+from multiprocessing import Process
 
 class nnUNetTrainer(object):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict, unpack_dataset: bool = True,
@@ -114,11 +116,17 @@ class nnUNetTrainer(object):
         # inference and some of the folders may not be defined!
         self.preprocessed_dataset_folder_base = join(nnUNet_preprocessed, self.plans_manager.dataset_name) \
             if nnUNet_preprocessed is not None else None
-        self.output_folder_base = join(nnUNet_results, self.plans_manager.dataset_name,
-                                       self.__class__.__name__ + '__' + self.plans_manager.plans_name + "__" + configuration) \
+
+        training_name = self.__class__.__name__ + '__' + self.plans_manager.plans_name + "__" + configuration
+
+        self.output_folder_base = join(nnUNet_results,
+                                       self.plans_manager.dataset_name,
+                                       training_name) \
             if nnUNet_results is not None else None
         self.output_folder = join(self.output_folder_base, f'fold_{fold}')
-
+        self.logScalar = LoggerScalar(
+            join(nnUNet_logs, self.plans_manager.dataset_name, training_name, f'fold_{fold}')
+        )
         self.preprocessed_dataset_folder = join(self.preprocessed_dataset_folder_base,
                                                 self.configuration_manager.data_identifier)
         # unlike the previous nnunet folder_with_segs_from_previous_stage is now part of the plans. For now it has to
@@ -809,6 +817,7 @@ class nnUNetTrainer(object):
 
         self._save_debug_information()
 
+        self.print_to_log_file('')
         # print(f"batch size: {self.batch_size}")
         # print(f"oversample: {self.oversample_foreground_percent}")
 
@@ -1000,6 +1009,7 @@ class nnUNetTrainer(object):
             self.save_checkpoint(join(self.output_folder, 'checkpoint_best.pth'))
 
         if self.local_rank == 0:
+            self.logScalar.plot_data(self.logger.my_fantastic_logging)
             self.logger.plot_progress_png(self.output_folder)
 
         self.current_epoch += 1
@@ -1195,14 +1205,21 @@ class nnUNetTrainer(object):
                                                 self.label_manager.foreground_labels,
                                                 self.label_manager.ignore_label, chill=True)
             self.print_to_log_file("Validation complete", also_print_to_console=True)
-            self.print_to_log_file("Mean Validation Dice: ", (metrics['foreground_mean']["Dice"]), also_print_to_console=True)
+            self.print_to_log_file("Mean Validation Dice: ", (metrics['foreground_mean']["Dice"]),
+                                   also_print_to_console=True)
 
         self.set_deep_supervision_enabled(True)
 
     def run_training(self):
         self.on_train_start()
+        port = find_free_port()
+        process = Process(target=start_server, args=(port,))
+        process.start()
 
-        if not (os.environ['MODEL_NAME'] == 'nnunet' or os.environ['MODEL_NAME'] == 'nnsam' or os.environ['MODEL_NAME'] == 'nnunet3d'):
+        self.print_to_log_file(f"Started visual server on port {port}")
+
+        if not (os.environ['MODEL_NAME'] == 'nnunet' or os.environ['MODEL_NAME'] == 'nnsam' or os.environ[
+            'MODEL_NAME'] == 'nnunet3d'):
             return "Model name is not nnunet or nnsam"
 
         for epoch in range(self.current_epoch, self.num_epochs):
@@ -1224,3 +1241,4 @@ class nnUNetTrainer(object):
             self.on_epoch_end()
 
         self.on_train_end()
+        process.close()
