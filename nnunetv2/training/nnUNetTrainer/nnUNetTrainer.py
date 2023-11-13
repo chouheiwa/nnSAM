@@ -24,7 +24,7 @@ from nnunetv2.evaluation.evaluate_predictions import compute_metrics_on_folder
 from nnunetv2.inference.export_prediction import export_prediction_from_softmax, resample_and_save
 from nnunetv2.inference.sliding_window_prediction import compute_gaussian, predict_sliding_window_return_logits
 from nnunetv2.visual_log import LoggerScalar, start_server, find_free_port
-from nnunetv2.paths import nnUNet_preprocessed, nnUNet_results, nnUNet_logs
+from nnunetv2.paths import nnUNet_preprocessed, nnUNet_results, nnUNet_logs, nnUNet_visual_port
 from nnunetv2.training.data_augmentation.compute_initial_patch_size import get_patch_size
 from nnunetv2.training.data_augmentation.custom_transforms.cascade_transforms import MoveSegAsOneHotToData, \
     ApplyRandomBinaryOperatorTransform, RemoveRandomConnectedComponentFromOneHotEncodingTransform
@@ -1212,11 +1212,8 @@ class nnUNetTrainer(object):
 
     def run_training(self):
         self.on_train_start()
-        port = find_free_port()
-        process = Process(target=start_server, args=(port,))
+        process = Process(target=start_server, args=(nnUNet_visual_port,))
         process.start()
-
-        self.print_to_log_file(f"Started visual server on port {port}")
 
         if not (os.environ['MODEL_NAME'] == 'nnunet' or os.environ['MODEL_NAME'] == 'nnsam' or os.environ[
             'MODEL_NAME'] == 'nnunet3d'):
