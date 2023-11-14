@@ -62,6 +62,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from multiprocessing import Process
 
+
 class nnUNetTrainer(object):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict, unpack_dataset: bool = True,
                  device: torch.device = torch.device('cuda')):

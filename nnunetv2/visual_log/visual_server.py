@@ -1,4 +1,5 @@
 import socket
+
 from visualdl.server import app
 
 from nnunetv2.paths import nnUNet_logs, nnUNet_visual_port
@@ -10,15 +11,18 @@ def find_free_port():
         return s.getsockname()[1]
 
 
-def start_server(port=nnUNet_visual_port):
+def start_server(
+        port=nnUNet_visual_port
+):
     if port is None:
         port = find_free_port()
+
+    print(f'VisualDL server is running on http://0.0.0.0:{port}')
     app.run(
         nnUNet_logs,
         host='0.0.0.0',
         port=port,
     )
-
 
 if __name__ == '__main__':
     start_server()

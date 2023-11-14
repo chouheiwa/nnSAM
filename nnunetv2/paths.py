@@ -22,6 +22,10 @@ nnUNet_preprocessed = os.environ.get('nnUNet_preprocessed')
 nnUNet_results = os.path.join(os.environ.get('nnUNet_results'), os.environ.get('MODEL_NAME'))
 nnUNet_logs = os.environ.get('nnUNet_logs')
 nnUNet_visual_port = os.environ.get('nnUNet_visual_port')
+
+if nnUNet_visual_port is not None:
+    nnUNet_visual_port = int(nnUNet_visual_port)
+
 if nnUNet_logs is None:
     nnUNet_logs = os.path.join(nnUNet_results, 'logs')
 os.makedirs(nnUNet_results, exist_ok=True)
